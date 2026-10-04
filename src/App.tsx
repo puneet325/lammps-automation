@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 
 type View = "landing" | "workspace" | "running" | "results" | "history" | "compare";
 
+const API_BASE_URL = "https://lammps-backend.onrender.com";
+
 const workflow = [
   { id: "01", name: "INPUT", description: "Parameters validated" },
   { id: "02", name: "LAMMPS", description: "Molecular dynamics simulation" },
@@ -381,7 +383,7 @@ function Results({
     let cancelled = false;
     const load = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/experiments/${experimentId}/results`);
+        const response = await fetch(`${API_BASE_URL}/api/experiments/${experimentId}/results`);
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.detail || "Could not load experiment results.");
         if (!cancelled) setData(body);
@@ -401,7 +403,7 @@ function Results({
 
   const exportReport = async () => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/experiments/${experimentId}/report`);
+      const response = await fetch(`${API_BASE_URL}/api/experiments/${experimentId}/report`);
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail || "Could not export report.");
       const blob = new Blob([JSON.stringify(body, null, 2)], { type: "application/json" });
@@ -482,7 +484,7 @@ function Results({
 
         <section className="final-visual">
           <div className="final-visual-heading"><div><span>FINAL SIMULATION FRAME</span><h2>ATOMIC <em>DEFORMATION</em></h2></div><small>OVITO / DISPLACEMENT VECTORS</small></div>
-          <img src={data.visualization_url} alt={`OVITO deformation visualization for ${experimentId}`} style={{ width: "100%", display: "block" }} />
+          <img src={data.visualization_url?.startsWith("http") ? data.visualization_url : `${API_BASE_URL}${data.visualization_url || ""}`} alt={`OVITO deformation visualization for ${experimentId}`} style={{ width: "100%", display: "block" }} />
           <div className="technical-strip">
             <span>FRAME <b>{data.deformation.frame ?? "—"}</b></span>
             <span>ATOM COUNT <b>{data.deformation.atom_count ?? "—"}</b></span>
@@ -510,7 +512,7 @@ function History({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/experiments")
+    fetch(`${API_BASE_URL}/api/experiments`)
       .then(async (response) => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.detail || "Could not load experiment history.");
@@ -555,7 +557,7 @@ function Compare({ setView, ids }: { setView: (view: View) => void; ids: string[
 
   useEffect(() => {
     if (ids.length !== 2) return;
-    fetch(`http://127.0.0.1:8000/api/experiments/compare?first=${encodeURIComponent(ids[0])}&second=${encodeURIComponent(ids[1])}`)
+    fetch(`${API_BASE_URL}/api/experiments/compare?first=${encodeURIComponent(ids[0])}&second=${encodeURIComponent(ids[1])}`)
       .then(async response => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.detail || "Could not compare experiments.");
@@ -619,7 +621,7 @@ export default function App() {
     try {
       setExperimentParams(params);
       setProgress(5);
-      const createResponse = await fetch("http://127.0.0.1:8000/api/experiments", {
+      const createResponse = await fetch(`${API_BASE_URL}/api/experiments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params),
@@ -631,7 +633,7 @@ export default function App() {
       setView("running");
       window.scrollTo(0, 0);
 
-      const runResponse = await fetch(`http://127.0.0.1:8000/api/experiments/${id}/run`, { method: "POST" });
+      const runResponse = await fetch(`${API_BASE_URL}/api/experiments/${id}/run`, { method: "POST" });
       const runBody = await runResponse.json().catch(() => ({}));
       if (!runResponse.ok) throw new Error(runBody.detail || "Failed to start the LAMMPS pipeline.");
       setProgress(10);
@@ -648,7 +650,7 @@ export default function App() {
     let timer: number | undefined;
     const checkStatus = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8000/api/experiments/${experimentId}/status`);
+        const response = await fetch(`${API_BASE_URL}/api/experiments/${experimentId}/status`);
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.detail || "Could not read experiment status.");
         if (cancelled) return;
